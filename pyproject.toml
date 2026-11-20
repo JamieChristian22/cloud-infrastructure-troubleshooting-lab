@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cloud-infrastructure-troubleshooting-lab"
+version = "1.0.0"
+description = "Offline-first incident response, troubleshooting, and reliability engineering portfolio lab"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Jamie Christian II" }]
+dependencies = []
+keywords = ["cloud", "sre", "devops", "incident-response", "linux", "troubleshooting", "observability"]
+
+[project.scripts]
+cloudops-lab = "cloudops_lab.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
