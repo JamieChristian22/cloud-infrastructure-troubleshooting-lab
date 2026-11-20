@@ -9,12 +9,14 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 from .state import FAULTS, RuntimeState
+from .database import OrdersDatabase, DatabaseUnavailable
 
 LOG = logging.getLogger('cloudops_lab')
-ORDERS = [
-    {'id': 'SAMPLE-1001', 'status': 'fulfilled', 'amount_usd': 48.50},
-    {'id': 'SAMPLE-1002', 'status': 'processing', 'amount_usd': 17.25},
-]
+class LabServer(ThreadingHTTPServer):
+    def server_close(self) -> None:
+        if hasattr(self, 'orders_db'):
+            self.orders_db.close()
+        super().server_close()
 
 
 class LabHandler(BaseHTTPRequestHandler):
@@ -71,15 +73,22 @@ class LabHandler(BaseHTTPRequestHandler):
         elif route == '/health/live':
             payload = {'status': 'alive'}
         elif route == '/health/ready':
-            code = 503 if fault == 'dependency_outage' else 200
-            payload = {'status': 'not_ready' if code == 503 else 'ready', 'dependency': 'unavailable' if code == 503 else 'available'}
+            code = 200 if self.server.orders_db.ready() else 503
+            payload = {'status': 'ready' if code == 200 else 'not_ready',
+                       'dependency': 'available' if code == 200 else 'unavailable'}
         elif route == '/api/orders':
             if fault == 'high_latency':
                 time.sleep(0.30)
-            code = {'dependency_outage': 503, 'application_error': 500, 'auth_misconfig': 401}.get(fault, 200)
-            payload = ({'orders': ORDERS, 'data_classification': 'synthetic'} if code == 200
-                       else {'error': {503: 'dependency_unavailable', 500: 'application_failure',
-                                      401: 'upstream_authentication_failed'}[code]})
+            if fault == 'application_error':
+                code, payload = 500, {'error': 'application_failure'}
+            elif fault == 'auth_misconfig':
+                code, payload = 401, {'error': 'upstream_authentication_failed'}
+            else:
+                try:
+                    payload = {'orders': self.server.orders_db.list_orders(),
+                               'data_classification': 'synthetic'}
+                except DatabaseUnavailable:
+                    code, payload = 503, {'error': 'dependency_unavailable'}
         elif route == '/metrics':
             self._reply(200, runtime.prometheus(), content_type='text/plain; version=0.0.4; charset=utf-8')
             self._finish(start, 200)
@@ -109,6 +118,12 @@ class LabHandler(BaseHTTPRequestHandler):
                     value = body.get('fault') if isinstance(body, dict) else None
                     if value not in FAULTS:
                         raise ValueError('unsupported fault')
+                    # Exercise a real local SQLite connection: close it on outage,
+                    # recreate seeded in-memory data on recovery.
+                    if value == 'dependency_outage':
+                        self.server.orders_db.disconnect()
+                    else:
+                        self.server.orders_db.recover()
                     self.server.runtime.set_fault(value)  # type: ignore[attr-defined]
                     code, payload = 200, {'fault': value, 'changed': True}
                 except (ValueError, json.JSONDecodeError, TypeError):
@@ -117,9 +132,10 @@ class LabHandler(BaseHTTPRequestHandler):
         self._finish(start, code)
 
 
-def build_server(host: str = '127.0.0.1', port: int = 0, *, token: str, state: RuntimeState | None = None) -> ThreadingHTTPServer:
-    server = ThreadingHTTPServer((host, port), LabHandler)
+def build_server(host: str = '127.0.0.1', port: int = 0, *, token: str, state: RuntimeState | None = None) -> LabServer:
+    server = LabServer((host, port), LabHandler)
     server.daemon_threads = True
     server.runtime = state or RuntimeState()  # type: ignore[attr-defined]
     server.lab_token = token  # type: ignore[attr-defined]
+    server.orders_db = OrdersDatabase()
     return server
