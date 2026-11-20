@@ -32,15 +32,15 @@ sequenceDiagram
 | Signal | Collection | Interpretation | Limitation |
 | --- | --- | --- | --- |
 | Liveness | `GET /health/live` | Process and handler reachable | Not proof upstream data is available |
-| Readiness | `GET /health/ready` | Simulated dependency usable | No actual database call |
+| Readiness | `GET /health/ready` | Local SQLite can execute a query | In-memory test data, not external database availability |
 | Error rate | `lab_requests_total` by status | Determine what fraction fails | Process-local; resets on restart |
-| Latency | `lab_request_duration_seconds_sum/count` | Mean request duration | No histogram/percentile instrumentation yet |
+| Latency | `lab_request_duration_histogram_seconds_bucket` and sum/count | p95 estimates and mean latency | Coarse histogram buckets, no long-running SLO proof |
 | Fault state | `lab_fault_active` | Incident currently injected | Lab simulation only |
 | HTTP request IDs | `X-Request-ID` + JSON event logs | Support correlation | Not distributed tracing |
 
 ## Failure taxonomy
 
-1. **503 dependency unavailable:** liveness healthy, readiness unhealthy, and API fails.
+1. **503 dependency unavailable:** close the real in-memory SQLite connection; liveness stays healthy, readiness becomes unhealthy, and the order API returns 503. Recovery reopens and reseeds the local database.
 2. **Slow but 200:** readiness healthy but response times regress, so errors alone will miss the incident.
 3. **500 application failure:** a request path breaks while health checks continue serving.
 4. **401 authentication misconfiguration:** a simulated upstream identity failure, not an authentication bypass.
@@ -56,12 +56,12 @@ sequenceDiagram
 
 ## Implementation scope
 
-**Verified locally:** Python service and CLI; fault flows, metrics, tests, Linux diagnostics, DNS/TCP checks, and four incident replays.
+**Verified:** Python service and CLI, local replay and tests; GitHub Actions verifies Python versions and a Docker build, health check, database outage and recovery. Check the current Actions results for the monitoring run.
 
-**Configured, awaiting external runtime verification:** Dockerfile, Compose, hosted GitHub Actions jobs.
+**Optional local monitoring:** Prometheus scrapes the API from the Compose network; a pre-provisioned Grafana dashboard charts injected faults, API error ratios, rates and p95 latency. Runtime verification depends on the monitoring CI job.
 
-**Not implemented:** AWS provisioning, Terraform deployment, Kubernetes, durable storage, external alerting, distributed tracing, cloud billing telemetry.
+**Not implemented:** AWS provisioning, Terraform deployment, Kubernetes, durable storage, external alerting, distributed tracing, cloud billing telemetry, genuine upstream authentication, or production-grade security controls.
 
 ## Next engineering steps
 
-Add real local dependencies, latency histograms, bounded retries with tests, Prometheus and Grafana local-only monitoring, and evidence-backed deployment/rollback.
+Add measured sustained load tests, bounded retries and timeouts with unit tests, dependable alert routing, and evidence-backed deployment/rollback. See [SLO plan](SLO.md).

@@ -19,14 +19,14 @@ curl -i http://127.0.0.1:8080/health/live
 curl -i http://127.0.0.1:8080/health/ready
 ```
 
-**Expected:** liveness 200, readiness 503, order API 503. The probe exits nonzero during the injected incident; this is expected.
+**Expected:** liveness 200, readiness 503, order API 503. The injector closes an actual local in-memory SQLite connection; recovery reconnects and re-seeds fictional data. The probe exits nonzero during the incident by design.
 
 ## Troubleshooting sequence
 
 1. Check whether liveness and readiness disagree.
 2. Compare failure statuses and request counts via `/metrics`.
 3. In a real environment, review dependency health, DNS/TCP, configuration, timeouts, and recent deploys.
-4. In this lab, confirm the deliberate fault using `status`; there is no real upstream service to repair.
+4. In this lab, confirm the deliberate SQLite disconnect using `status` and the readiness request; there is no external managed database to repair.
 
 ## Recovery
 

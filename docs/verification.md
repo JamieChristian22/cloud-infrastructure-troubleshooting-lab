@@ -12,10 +12,16 @@
 
 Reproduction artifacts are stored in [evidence](../evidence/). Timestamps and latencies change between runs. Synthetic tests do not prove real cloud network behavior.
 
+## GitHub Actions verified on upgrade branch
+
+- The first upgrade run passed Python 3.11/3.12/3.13 verification, dependency integration tests and a Docker/Compose real SQLite disconnect-and-recover smoke test on November 20, 2026 UTC. [Inspect the passing workflow](https://github.com/JamieChristian22/cloud-infrastructure-troubleshooting-lab/actions/runs/44655835722).
+- The optional monitoring overlay has its own CI smoke job in the expanded workflow. Verify its actual completion and artifacts in [Actions](https://github.com/JamieChristian22/cloud-infrastructure-troubleshooting-lab/actions); adding files is not evidence that a dashboard runs.
+- The retained replay JSON/Markdown at `evidence/` was generated **before** SQLite was added, from a synthetic status-only fault. CI produces new per-run evidence against the upgraded SQLite implementation.
+
 ## Not independently verified by the initial build
 
-- Docker image build and Docker Compose runtime.
-- Hosted GitHub Actions execution; inspect the Actions tab for a new real run.
+- Docker runtime on the recruiter's personal workstation (CI Docker verification exists).
+- Long-running dashboard and monitoring behavior outside CI.
 - Terraform or AWS deployment and billing (not part of this version).
 - Substantial-load benchmarks, production SLOs, and internet-exposed security review.
 

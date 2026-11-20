@@ -1,10 +1,10 @@
 # Cloud Infrastructure Troubleshooting & Reliability Lab
 
-**A reproducible engineering portfolio demonstrating incident investigation, fault isolation, service recovery, observability, Linux diagnostics, and safe operations.**
+**A reproducible engineering portfolio demonstrating incident investigation, fault isolation, real local SQLite dependency recovery, observability, Linux/network diagnostics, and safe operations.**
 
 [![CI](https://github.com/JamieChristian22/cloud-infrastructure-troubleshooting-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/JamieChristian22/cloud-infrastructure-troubleshooting-lab/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
-![Tests](https://img.shields.io/badge/Automated_tests-19_passing-1b6c47)
+![Verification](https://img.shields.io/badge/CI-Python%20%2B%20Docker-1b6c47)
 ![Cost](https://img.shields.io/badge/Cloud_cost-%240-1b6c47)
 ![License](https://img.shields.io/badge/License-MIT-333333)
 
@@ -26,7 +26,7 @@
 
 ## Why this project exists
 
-Cloud support and platform engineers are expected to do more than describe AWS services or draw VPC diagrams. They need to identify an alert, inspect **signals rather than guesses**, understand blast radius, find an actionable root cause, recover, and document what they learned. This lab implements a small observable order API and makes that workflow repeatable at **$0 cloud cost**.
+Cloud support and platform engineers are expected to do more than describe AWS services or draw VPC diagrams. They need to identify an alert, inspect **signals rather than guesses**, understand blast radius, find an actionable root cause, recover, and document what they learned. This lab implements a small observable SQLite-backed order API and makes that workflow repeatable at **$0 cloud cost**.
 
 **Career relevance:** Associate Cloud Engineer · Cloud Support Engineer · Technical Support Engineer · Application Support Engineer · Junior DevOps Engineer · Associate Platform Engineer · Junior SRE.
 
@@ -36,7 +36,8 @@ Cloud support and platform engineers are expected to do more than describe AWS s
 flowchart LR
   operator[Engineer / CLI] -->|HTTP probes and auth-protected fault controls| api[Local Python HTTP Service]
   api --> readiness[Health: liveness and readiness]
-  api --> order[Sample orders API]
+  api --> order[SQLite-backed sample orders API]
+  order --> sqlite[(Local in-memory SQLite)]
   api --> metrics[Prometheus-compatible metrics]
   api --> faults[Fault simulator]
   operator --> triage[Linux and DNS/TCP triage]
@@ -49,13 +50,15 @@ flowchart LR
 | --- | --- |
 | Service | Python 3.11+, standard-library `ThreadingHTTPServer` |
 | HTTP endpoints | `/health/live`, `/health/ready`, `/api/orders`, `/metrics` |
-| Faults | Dependency outage, high latency, application error, upstream auth misconfiguration |
+| Faults | Real in-memory SQLite disconnect/reconnect; simulated latency, application errors, and upstream auth errors |
+| Dependency | Python built-in SQLite engine with seeded fictional orders; ephemeral by design |
 | Security | Random fault-control token, loopback binding by default, no production data |
 | Local triage | Linux disk/memory/CPU summary, DNS resolution, single-port TCP connectivity |
 | Logs | JSON-formatted request events with bounded route labels and request IDs |
+| Observability | Prometheus cumulative latency histograms, counters and gauges; optional Grafana dashboard |
 | Tests | Built-in `unittest`; no third-party runtime dependencies |
-| Container | Rootless Docker image and local-only Compose publishing (provided; verify on your host) |
-| CI | GitHub Actions 3-version matrix, incident evidence artifact upload |
+| Container | Non-root, localhost-only Compose service; build, health and recovery tested in GitHub Actions |
+| CI | GitHub Actions 3-version matrix, generated incident evidence, container smoke checks and monitoring checks |
 
 ## Quick start — completely free
 
@@ -68,7 +71,7 @@ python -m unittest discover -s tests -v
 python -m cloudops_lab demo --output evidence
 ```
 
-**Observed during initial project verification:** 19/19 automated tests passed, and 4/4 fault scenarios were injected, observed and recovered successfully. Re-run locally or inspect the CI workflow rather than assuming this reflects all platforms.
+**Evidence:** The original build passed 19 tests and all four simulated incidents. The expanded suite and container recovery are checked by GitHub Actions; view the latest runs for the current pass/fail status. This is not proof of a public-cloud deployment.
 
 ### Start and operate the service
 
@@ -110,6 +113,44 @@ python -m cloudops_lab network --host localhost --port 8080
 
 Read-only triage collects only local host characteristics and checks exactly **one host and port**. Do not use this project for unauthorized network probing.
 
+## Docker and monitoring — localhost only
+
+Run the rootless container lab locally:
+
+```bash
+docker compose up -d --build --wait
+docker compose exec -T cloudops-lab python -m cloudops_lab inject dependency_outage
+docker compose exec -T cloudops-lab python -m cloudops_lab status
+docker compose exec -T cloudops-lab python -m cloudops_lab recover
+docker compose down --volumes
+```
+
+The Docker CI job executes a real Compose build, readiness check, SQLite disconnect, 503 detection, and recovery. To add local-only Prometheus and a pre-provisioned Grafana dashboard:
+
+```bash
+export GRAFANA_ADMIN_PASSWORD='choose-a-unique-local-password'
+docker compose -f compose.yaml -f compose.monitoring.yaml up -d --build
+```
+
+Prometheus: http://127.0.0.1:9090 · Grafana: http://127.0.0.1:3000 (admin, password set above). Open the **CloudOps Lab — Service Reliability** dashboard under **CloudOps Lab**. Send requests to the application before expecting charts to populate. Stop everything with:
+
+```bash
+docker compose -f compose.yaml -f compose.monitoring.yaml down --volumes
+```
+
+**Safety:** all ports bind to localhost; do not expose to the internet. The database and telemetry storage are intentionally ephemeral. Grafana requires an explicitly chosen password. See [proposed SLOs and queries](docs/SLO.md). CI exercises this stack separately; always consult actual run status.
+
+## Incident case studies and retained evidence
+
+The four [incident case studies](docs/incidents/) explain observed symptoms, competing diagnoses, recovery, guardrails, and limitations. Their numeric observations trace to the initial [timestamped incident replay](evidence/incident-replay.json); newer CI runs generate additional artifacts. The older replay used a synthetic status-only dependency fault. The upgraded version also closes and reopens a real, local SQLite connection (verified through new tests). Neither version represents an external outage.
+
+| Incident case study | Observed signal |
+| --- | --- |
+| [01 — SQLite dependency and readiness](docs/incidents/01-dependency-outage.md) | HTTP 503, readiness unavailable |
+| [02 — Slow but successful API](docs/incidents/02-high-latency.md) | HTTP 200 with ~301ms delay |
+| [03 — Application 500](docs/incidents/03-application-error.md) | HTTP 500, readiness still 200 |
+| [04 — Simulated upstream authentication](docs/incidents/04-auth-misconfiguration.md) | HTTP 401, readiness still 200 |
+
 ## Supported, executable incidents
 
 | # | Scenario | Service symptom | Expected on API | Recovery |
@@ -119,7 +160,7 @@ Read-only triage collects only local host characteristics and checks exactly **o
 | 03 | [Application error](docs/runbooks/03-application-error.md) | Request fails, health may remain up | HTTP 500 | Restore successful API response |
 | 04 | [Upstream auth misconfiguration](docs/runbooks/04-auth-misconfig.md) | API cannot authenticate to simulated upstream | HTTP 401 | Reset fault and verify request |
 
-The fault emulator is deliberately scoped to a local service; it does not actually break AWS networking, credentials, a real database, or an external dependency. The meaningful engineering work is **signal interpretation, diagnosis, controls and verified recovery**.
+The SQLite dependency is local and real: the upgrade disconnects and reconnects its in-memory database. Other faults remain deliberately synthetic; nothing alters AWS, a production database, or external infrastructure. The engineering focus is **signal interpretation, diagnosis, controls, and verified recovery**.
 
 ### Additional investigation exercises
 
@@ -148,7 +189,7 @@ cloud-infrastructure-troubleshooting-lab/
 
 ## Engineering decisions and tradeoffs
 
-**Why no external dependencies?** A new engineer should be able to clone this and run useful incidents without signing up for an AWS account or paying for infrastructure. The standard library also keeps the failure surface observable and inspectable.
+**Why no third-party runtime libraries?** Python includes SQLite, so the core lab can operate with no AWS account, paid services or extra runtime packages. The optional monitoring stack runs in Docker containers.
 
 **Why separate liveness from readiness?** A process can stay alive while an upstream service is unusable. The dependency-outage scenario demonstrates this distinction: liveness remains 200 while readiness becomes 503.
 
@@ -158,7 +199,7 @@ cloud-infrastructure-troubleshooting-lab/
 
 ## Next engineering milestones — not yet implemented
 
-See [`docs/roadmap.md`](docs/roadmap.md) for concrete completion gates: measured latency SLOs, a real dependency with graceful degradation, full Docker runtime validation, an instrumented dashboard, Kubernetes probe manifests, and a safely budgeted optional AWS deployment. No milestone is presented as completed without supporting evidence.
+See [the roadmap](docs/roadmap.md) for remaining work: bounded resilience policies, longer-running load observations, durable monitoring, Kubernetes checks and optional budget-approved AWS deployment. Real local SQLite failures, latency histograms, automated Docker recovery and a provisioned local Grafana dashboard are part of this version. No work is presented as production cloud experience.
 
 ## Portfolio interview guide
 
