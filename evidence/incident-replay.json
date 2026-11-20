@@ -1,0 +1,86 @@
+{
+  "lab": "Cloud Infrastructure Troubleshooting Lab",
+  "execution_mode": "local simulation; synthetic data; no cloud resources",
+  "generated_at_utc": "2026-11-20T00:34:49.049262+00:00",
+  "baseline": {
+    "readiness_http": 200,
+    "api_http": 200
+  },
+  "scenarios": [
+    {
+      "scenario": "dependency_outage",
+      "expected_readiness_http": 503,
+      "observed_readiness_http": 503,
+      "expected_api_http": 503,
+      "observed_api_http": 503,
+      "observed_api_latency_ms": 0.59,
+      "investigation_next_step": "Check dependency readiness and upstream connectivity",
+      "result": "PASS",
+      "api_response": {
+        "error": "dependency_unavailable"
+      },
+      "recovery_http": 200,
+      "recovery_verified": true
+    },
+    {
+      "scenario": "high_latency",
+      "expected_readiness_http": 200,
+      "observed_readiness_http": 200,
+      "expected_api_http": 200,
+      "observed_api_http": 200,
+      "observed_api_latency_ms": 301,
+      "investigation_next_step": "Check request durations and upstream response time",
+      "result": "PASS",
+      "api_response": {
+        "data_classification": "synthetic",
+        "orders": [
+          {
+            "amount_usd": 48.5,
+            "id": "SAMPLE-1001",
+            "status": "fulfilled"
+          },
+          {
+            "amount_usd": 17.25,
+            "id": "SAMPLE-1002",
+            "status": "processing"
+          }
+        ]
+      },
+      "recovery_http": 200,
+      "recovery_verified": true
+    },
+    {
+      "scenario": "application_error",
+      "expected_readiness_http": 200,
+      "observed_readiness_http": 200,
+      "expected_api_http": 500,
+      "observed_api_http": 500,
+      "observed_api_latency_ms": 0.69,
+      "investigation_next_step": "Correlate request ID with application error logs",
+      "result": "PASS",
+      "api_response": {
+        "error": "application_failure"
+      },
+      "recovery_http": 200,
+      "recovery_verified": true
+    },
+    {
+      "scenario": "auth_misconfig",
+      "expected_readiness_http": 200,
+      "observed_readiness_http": 200,
+      "expected_api_http": 401,
+      "observed_api_http": 401,
+      "observed_api_latency_ms": 0.66,
+      "investigation_next_step": "Validate upstream service identity and credential configuration",
+      "result": "PASS",
+      "api_response": {
+        "error": "upstream_authentication_failed"
+      },
+      "recovery_http": 200,
+      "recovery_verified": true
+    }
+  ],
+  "total_scenarios": 4,
+  "successful_scenarios": 4,
+  "complete": true
+}
