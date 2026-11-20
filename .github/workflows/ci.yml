@@ -67,3 +67,36 @@ jobs:
       - name: Tear down containers
         if: always()
         run: docker compose down --volumes --remove-orphans
+
+  monitoring-smoke:
+    name: Prometheus + Grafana local monitoring smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GRAFANA_ADMIN_PASSWORD: ci-temporary-local-only
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Validate optional monitoring configuration
+        run: docker compose -f compose.yaml -f compose.monitoring.yaml config --quiet
+      - name: Start local telemetry stack
+        run: docker compose -f compose.yaml -f compose.monitoring.yaml up -d --build
+      - name: Wait for Prometheus and Grafana HTTP health
+        run: |
+          for i in $(seq 1 45); do
+            if curl --fail --silent http://127.0.0.1:9090/-/healthy >/dev/null && curl --fail --silent http://127.0.0.1:3000/api/health >/dev/null; then exit 0; fi
+            sleep 3
+          done
+          exit 1
+      - name: Verify configured telemetry and Grafana dashboard
+        run: |
+          docker compose -f compose.yaml -f compose.monitoring.yaml exec -T cloudops-lab python -m cloudops_lab probe --requests 3
+          sleep 12
+          curl --fail --silent -G --data-urlencode 'query=lab_uptime_seconds' http://127.0.0.1:9090/api/v1/query | grep '"resultType":"vector"'
+          curl --fail --silent -u admin:ci-temporary-local-only http://127.0.0.1:3000/api/dashboards/uid/cloudops-lab | grep 'CloudOps Lab'
+      - name: Capture telemetry logs on failure
+        if: failure()
+        run: docker compose -f compose.yaml -f compose.monitoring.yaml logs --no-color
+      - name: Tear down monitoring
+        if: always()
+        run: docker compose -f compose.yaml -f compose.monitoring.yaml down --volumes --remove-orphans
