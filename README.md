@@ -10,6 +10,8 @@
 
 **Author:** Jamie Christian II · [GitHub profile](https://github.com/JamieChristian22) · [Portfolio](https://jamiechristian22.github.io/)
 
+**Support this project:** [Sponsor its maintenance and reproducible learning resources on GitHub](https://github.com/sponsors/JamieChristian22). Sponsorship is optional; the MIT-licensed code, documentation, and existing examples remain public.
+
 > **Evidence statement:** This project includes a real, locally executed Python service and automated tests. The incidents are **intentionally simulated using synthetic data**. They do **not** represent employer incidents, live AWS deployments, actual production SLAs, or external customer outcomes. Docker files are provided but may require validation on your machine. See [Verified vs. not yet verified](docs/verification.md).
 
 ## What an engineering recruiter can verify in five minutes
