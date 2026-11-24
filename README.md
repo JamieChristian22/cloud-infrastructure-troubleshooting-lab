@@ -1,5 +1,12 @@
 # Cloud Infrastructure Troubleshooting & Reliability Lab
 
+Cloud support and reliability engineering lab covering Python service diagnostics, Linux networking, HTTP health checks, SQLite recovery, fault injection and incident response using local simulations.
+
+**Explore related projects:** [cloud support operations portfolio](https://github.com/JamieChristian22/cloud-support-operations-portfolio) · [aws vpc terraform lab](https://github.com/JamieChristian22/aws-vpc-terraform-lab)
+
+[Recruiter quick-start guide](https://github.com/JamieChristian22/JamieChristian22/blob/main/RECRUITER_START_HERE.md) · [Portfolio website](https://jamiechristian22.github.io/)
+
+
 **A reproducible engineering portfolio demonstrating incident investigation, fault isolation, real local SQLite dependency recovery, observability, Linux/network diagnostics, and safe operations.**
 
 [![CI](https://github.com/JamieChristian22/cloud-infrastructure-troubleshooting-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/JamieChristian22/cloud-infrastructure-troubleshooting-lab/actions/workflows/ci.yml)
