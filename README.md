@@ -21,6 +21,10 @@ Cloud support and reliability engineering lab covering Python service diagnostic
 
 > **Evidence statement:** This project includes a real, locally executed Python service and automated tests. The incidents are **intentionally simulated using synthetic data**. They do **not** represent employer incidents, live AWS deployments, actual production SLAs, or external customer outcomes. Docker files are provided but may require validation on your machine. See [Verified vs. not yet verified](docs/verification.md).
 
+## Free troubleshooting field guide
+
+[Start the 20-minute cloud support practice session](docs/troubleshooting-field-guide.md) for a local incident exercise, DNS/TCP/HTTP diagnostic decision table, and reusable incident worksheet. No paid tools or cloud deployment required. [Contribution guidelines](CONTRIBUTING.md) explain how to submit focused corrections and reproducible improvements.
+
 ## What an engineering recruiter can verify in five minutes
 
 | Proof | Inspect | Why it matters |
